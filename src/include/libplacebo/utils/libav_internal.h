@@ -1228,6 +1228,18 @@ static bool pl_map_avframe_vulkan(pl_gpu gpu, struct pl_frame *out,
     out->acquire = pl_acquire_avframe;
     out->release = pl_release_avframe;
     pl_fix_hwframe_sample_depth(out);
+
+    // Per-plane fallback (e.g. CUDA interop with DISABLE_MULTIPLANE) samples
+    // the raw 16-bit word where P010 stores data as value << 6, so bit_shift=6
+    // is required. Multiplane _3PACK16 decode hands the GPU a 10-bit sample
+    // directly and needs bit_shift=0; that path is skipped via priv->planar.
+    if (!priv->planar) {
+        switch (hwfc->sw_format) {
+        case AV_PIX_FMT_P010: out->repr.bits.bit_shift = 6; break;
+        default: break;
+        }
+    }
+
     return true;
 }
 
